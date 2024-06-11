@@ -49,8 +49,8 @@ def home():
     f"Precipitation = /api/v1.0/precipitation<br/>"
     f"Stations = /api/v1.0/stations<br/>"
     f"Tobs = /api/v1.0/tobs<br/>"
-    f"/api/v1.0/2016-8-23<br/>"
-    f"/api/v1.0/2016-8-23/2017-8-23<br/>"
+    f"start = /api/v1.0/8-23-2016 remove - when choosing a date, MMDDYYYY <br/>"
+    f"start_end = /api/v1.0/8-23-2016/8-23-2017  remove - when choosing a date, MMDDYYYY <br/>"
     
 )
 
@@ -119,28 +119,57 @@ def tobs():
     tobs = list(np.ravel(active_results))
     return jsonify(tobs)
 
-@app.route("/api/v1.0/2016-8-23")
-def start():
+@app.route("/api/v1.0/<start>")
+def start(start):
     # Create our session (link) from Python to the DB
     session = Session(engine)
 
     # Accepts start date as parameter from URL
-    # Returns min, max, avg temps from given start date to end (Aug '16-Aug '17)
-
-
+    # Returns min, max, avg temps calculated from given start date to end of the dataset
+    start = dt.datetime.strptime(start, "%m%d%Y")
+    
+    temp_summary = session.query(func.min(hi_measurement.tobs), func.max(hi_measurement.tobs), func.avg(hi_measurement.tobs))\
+        .filter(hi_measurement.date >= start).\
+        all()
+    
+    lowest_temp, highest_temp, avg_temp = temp_summary[0]
+    summary_of_weather = {"Minimum": lowest_temp,
+     "Maximum": highest_temp,
+     "Average": avg_temp
+    }
+    
     session.close()
 
+    return jsonify(summary_of_weather)
 
-@app.route("/api/v1.0/2016-8-23/2017-8-23")
-def start_end():
+
+@app.route("/api/v1.0/<start>/<end>")
+def start_end(start, end):
     # Create our session (link) from Python to the DB
     session = Session(engine)
 
     # Accepts start and end date as parameter from URL
-    # Returns min, max, avg temps from given start date to end (Aug '16-Aug '17)
+    # Returns min, max, avg temps from given start date to given end date (Aug '16-Aug '17)
+    start = dt.datetime.strptime(start, "%m%d%Y")
+    end = dt.datetime.strptime(end, "%m%d%Y")
 
+    temp_summary = session.query(func.min(hi_measurement.tobs), func.max(hi_measurement.tobs), func.avg(hi_measurement.tobs))\
+        .filter(hi_measurement.date >= start and hi_measurement.date <= end).\
+        all()
+    
+    lowest_temp, highest_temp, avg_temp = temp_summary[0]
+    summary_of_weather = {"Minimum": lowest_temp,
+     "Maximum": highest_temp,
+     "Average": avg_temp
+    }
+    
+    
+    session.close()
+
+    return jsonify(summary_of_weather)
 
     session.close()
 
 if __name__ == "__main__":
     app.run(debug=True)
+
